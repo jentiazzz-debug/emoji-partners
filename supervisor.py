@@ -126,6 +126,15 @@ async def start(row: dict) -> tuple[bool, str]:
     if alive(row_id):
         return True, "Бот уже запущен."
 
+    # Единственная точка, где движок нужен физически. Проверка стоит
+    # здесь, а не при старте франшизы: так один и тот же ответ получают
+    # и кнопка партнёра, и автозапуск, и watchdog.
+    if not config.engine_ready():
+        note = "Движок недоступен на сервере — запуск ботов временно отключён."
+        await db.set_state(row_id, "error", note)
+        log.error("нет движка: %s", config.ENGINE_DIR / config.ENGINE_ENTRY)
+        return False, note
+
     ws = workspace(int(row["bot_id"]))
     logfile = open(ws / "bot.log", "a", encoding="utf-8", errors="replace")
     try:

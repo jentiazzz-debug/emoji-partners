@@ -135,16 +135,21 @@ SUB_PLANS: tuple[tuple[str, str, str], ...] = (
 )
 
 
+def engine_ready() -> bool:
+    """Есть ли рядом движок, копии которого мы запускаем.
+
+    Проверяется на каждый запуск бота, а не один раз при старте:
+    движок может приехать позже (его докладывают в образ, монтируют
+    томом, выкачивают отдельным шагом), и перезапускать ради этого всю
+    франшизу незачем.
+    """
+    return (ENGINE_DIR / ENGINE_ENTRY).exists()
+
+
 def check() -> None:
     """Ранние проверки: без них бот падает позже и непонятнее."""
     if not BOT_TOKEN:
         raise SystemExit(
             "Не задан BOT_TOKEN. Скопируй .env.example в .env и впиши токен "
             "от @BotFather."
-        )
-    entry = ENGINE_DIR / ENGINE_ENTRY
-    if not entry.exists():
-        raise SystemExit(
-            f"Не найден движок дочерних ботов: {entry}\n"
-            "Укажи путь к папке бота-конструктора в ENGINE_DIR."
         )

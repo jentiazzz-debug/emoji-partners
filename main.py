@@ -56,6 +56,15 @@ async def main() -> None:
     log.info("франшиза запущена как @%s", me.username)
     if not config.ADMIN_IDS:
         log.warning("ADMIN_IDS пуст — админка недоступна никому")
+    if not config.engine_ready():
+        # Без движка кабинет работает, а боты партнёров запускать нечем.
+        # Падать из-за этого нельзя: на хостинге франшиза уедет в цикл
+        # перезапусков, и партнёры не увидят даже своей статистики.
+        log.error(
+            "движок не найден: %s. Кабинет работает, запуск ботов отключён. "
+            "Положите код бота-конструктора рядом или укажите ENGINE_DIR.",
+            config.ENGINE_DIR / config.ENGINE_ENTRY,
+        )
     await bot.set_my_commands(
         [BotCommand(command=c, description=d) for c, d in COMMANDS]
     )
@@ -80,5 +89,11 @@ async def main() -> None:
 if __name__ == "__main__":
     try:
         asyncio.run(main())
-    except (KeyboardInterrupt, SystemExit):
+    except KeyboardInterrupt:
         pass
+    except SystemExit as err:
+        # Молчать здесь нельзя: на хостинге видно только лог, и «бот
+        # запустился и сразу тихо умер» — худшее, что он может сказать.
+        if err.code and not isinstance(err.code, int):
+            log.error("%s", err.code)
+        raise

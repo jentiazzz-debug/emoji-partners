@@ -201,6 +201,14 @@ async def buy_plan(call: CallbackQuery):
 
 @router.callback_query(F.data == "addbot")
 async def add_bot_start(call: CallbackQuery, state: FSMContext):
+    if not config.engine_ready():
+        await call.answer(
+            "Подключение ботов временно недоступно: на сервере идут работы. "
+            f"Мы уже занимаемся этим — напишите в {config.SUPPORT}, если "
+            "срочно.",
+            show_alert=True,
+        )
+        return
     row = await who(call.from_user)
     have = len(await db.bots_of(row["uid"]))
     if not partners.can_add_bot(row, have):
