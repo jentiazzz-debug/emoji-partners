@@ -80,6 +80,16 @@ def alive(row_id: int) -> bool:
     return bool(proc and proc.poll() is None)
 
 
+def _running() -> list[int]:
+    """Кто из ботов действительно жив прямо сейчас.
+
+    Считается по процессам, а не по состоянию в базе: состояние может
+    отставать (бот упал секунду назад), а предел памяти — вещь
+    сиюминутная.
+    """
+    return [row_id for row_id, proc in _procs.items() if proc.poll() is None]
+
+
 def tail(row: dict, lines: int = 12) -> str:
     """Хвост лога бота — то, что показывается партнёру при ошибке."""
     path = workspace(int(row["bot_id"])) / "bot.log"
@@ -133,6 +143,18 @@ async def start(row: dict) -> tuple[bool, str]:
         note = "Движок недоступен на сервере — запуск ботов временно отключён."
         await db.set_state(row_id, "error", note)
         log.error("нет движка: %s", config.ENGINE_DIR / config.ENGINE_ENTRY)
+        return False, note
+
+    # Предел одновременно живых ботов. Упереться в память всем
+    # сервисом — это лежачие боты у всех партнёров сразу; лучше честно
+    # не поднять один и сказать об этом.
+    if config.MAX_RUNNING and len(_running()) >= config.MAX_RUNNING:
+        note = (
+            f"Сервер занят: одновременно работает "
+            f"{config.MAX_RUNNING} {'бот' if config.MAX_RUNNING == 1 else 'ботов'}. "
+            f"Остановите другого своего бота или напишите в поддержку."
+        )
+        log.warning("предел MAX_RUNNING=%s, бот не поднят", config.MAX_RUNNING)
         return False, note
 
     ws = workspace(int(row["bot_id"]))

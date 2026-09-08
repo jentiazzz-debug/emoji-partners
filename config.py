@@ -52,7 +52,22 @@ ADMIN_IDS = _ints(os.getenv("ADMIN_IDS"))
 #: Папка с кодом бота-конструктора. Франшиза его не правит — только
 #: запускает копии с другим токеном и другой папкой данных. Поэтому
 #: движок можно обновлять отдельно, не трогая франшизу.
-ENGINE_DIR = Path(os.getenv("ENGINE_DIR") or BASE_DIR.parent / "StickerEmojiBot")
+#:
+#: По умолчанию берётся вложенная папка engine/ — она едет вместе с
+#: репозиторием, и на хостинге движок оказывается в том же контейнере.
+#: Если её нет, ищем соседнюю папку StickerEmojiBot: так удобнее
+#: разрабатывать локально, правя движок в его собственном репозитории.
+def _engine_dir() -> Path:
+    override = os.getenv("ENGINE_DIR", "").strip()
+    if override:
+        return Path(override)
+    local = BASE_DIR / "engine"
+    if (local / "bot.py").exists():
+        return local
+    return BASE_DIR.parent / "StickerEmojiBot"
+
+
+ENGINE_DIR = _engine_dir()
 
 #: Файл, который запускается для дочернего бота.
 ENGINE_ENTRY = os.getenv("ENGINE_ENTRY", "bot.py")
@@ -68,6 +83,13 @@ FREE_BOTS = int(os.getenv("FREE_BOTS", "1"))
 
 #: Сколько ботов разрешено с подпиской. 0 — без ограничений.
 SUB_BOTS = int(os.getenv("SUB_BOTS", "0"))
+
+#: Сколько ботов разрешено держать запущенными одновременно на этой
+#: машине. Каждый бот — отдельный процесс на 150–250 МБ: на контейнере
+#: хостинга их влезает единицы, и упереться в предел памяти всем
+#: сервисом хуже, чем честно не запустить лишнего. 0 — без ограничения
+#: (так стоит делать только на своём сервере).
+MAX_RUNNING = int(os.getenv("MAX_RUNNING", "3"))
 
 #: Как часто пересчитывать продажи дочерних ботов, секунды.
 STATS_INTERVAL = int(os.getenv("STATS_INTERVAL", "300"))
